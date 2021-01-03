@@ -1,0 +1,207 @@
+Our settings get loaded via `HtmlEntityFormController`:
+
+[source,php]
+----
+  protected function getFormObject(RouteMatchInterface $route_match, $form_arg) {
+    // If no operation is provided, use 'default'.
+    $form_arg .= '.default';
+    list ($entity_type_id, $operation) = explode('.', $form_arg);
+
+    $form_object = $this->entityTypeManager->getFormObject($entity_type_id, $operation);
+
+    // Allow the entity form to determine the entity object from a given route
+    // match.
+    $entity = $form_object->getEntityFromRouteMatch($route_match, $entity_type_id);
+    $form_object->setEntity($entity);
+
+    return $form_object;
+  }
+----
+
+The entity is an instance of `EntityFormDisplay`. The `$entity_type_id` is `entity_form_display`, and the route name is `entity.entity_form_display.node.default`.
+
+In `EntityDisplayFormBase` we have:
+
+[source,php]
+----
+  public function getEntityFromRouteMatch(RouteMatchInterface $route_match, $entity_type_id) {
+    $route_parameters = $route_match->getParameters()->all();
+
+    return $this->getEntityDisplay($route_parameters['entity_type_id'], $route_parameters['bundle'], $route_parameters[$this->displayContext . '_mode_name']);
+  }
+----
+
+Where the values correspond to:
+
+- `$route_parameters['entity_type_id']` is `'node'`
+- `$route_parameters['bundle']` is `'page'`
+- `$this->displayContext` is `'form'`
+- `$route_parameters['form_mode_name']` is `'default'`
+
+So the call literally resolves to:
+
+[source,php]
+----
+$this->getEntityDisplay('node', 'page', 'default');
+----
+
+Let's take a look at what `EntityFormDisplayEditForm->getEntityDisplay()` does:
+
+[source,php]
+----
+protected function getEntityDisplay($entity_type_id, $bundle, $mode) {
+  return $this->entityDisplayRepository->getFormDisplay($entity_type_id, $bundle, $mode);
+}
+----
+
+Okay, that didn't get us much further. How about `EntityDisplayRepository->getFormDisplay()`
+
+[source,php]
+----
+  public function getFormDisplay($entity_type, $bundle, $form_mode = self::DEFAULT_DISPLAY_MODE) {
+    $storage = $this->entityTypeManager->getStorage('entity_form_display');
+
+    // Try loading the entity from configuration; if not found, create a fresh
+    // entity object. We do not preemptively create new entity form display
+    // configuration entries for each existing entity type and bundle whenever a
+    // new form mode becomes available. Instead, configuration entries are only
+    // created when an entity form display is explicitly configured and saved.
+    $entity_form_display = $storage->load($entity_type . '.' . $bundle . '.' . $form_mode);
+    if (!$entity_form_display) {
+      $entity_form_display = $storage->create([
+        'targetEntityType' => $entity_type,
+        'bundle' => $bundle,
+        'mode' => $form_mode,
+        'status' => TRUE,
+      ]);
+    }
+    return $entity_form_display;
+  }
+----
+
+Now we're getting somewhere!
+
+The first thing this does is load the `'entity_form_display'` configuration from the entityTypeManager storage. Then it loads a key based on the passed values for our type, bundle, and storage--in our case effectively loading `entity_form_display.node.page.default`. And as we saw earlier in `core.entity.schema.yml` that we have the pattern `+core.entity_form_display.*.*.*+` defined for the base form schema.
+
+What we end up with is a configuration entity with a schema corresponding to that build from `+core.entity_form_display.*.*.*+`, where this wildcard name is resolved as;
+
+----
+[module].[config_entity_id].[entity_type_id].[bundle].[form_mode_name]
+----
+
+(Where `form_mode_name` is basically the display mode).
+
+
+
+The last part of this is in `+$storage->create()+`, where we see a call which literally resolves to 
+
+[source,php]
+----
+$route_match->getParameters()->all()
+‌array (
+  'form_mode_name' => 'default',
+  'entity_type_id' => 'node',
+  'bundle' => 'page',
+  'node_type' => 
+  Drupal\node\Entity\NodeType::__set_state(array(
+     'type' => 'page',
+     'name' => 'Basic page',
+     'description' => 'Use <em>basic pages</em> for your static content, such as an \'About us\' page.',
+     'help' => '',
+     'new_revision' => true,
+     'preview_mode' => 1,
+     'display_submitted' => false,
+     'originalId' => 'page',
+     'status' => true,
+     'uuid' => '207d641a-0dc0-4f00-a7cd-f3bb867fe81c',
+     'isUninstalling' => false,
+     'langcode' => 'en',
+     'third_party_settings' => 
+    array (
+    ),
+     '_core' => 
+    array (
+      'default_config_hash' => 'KuyA4NHPXcmKAjRtwa0vQc2ZcyrUJy6IlS2TAyMNRbc',
+    ),
+     'trustedData' => false,
+     'entityTypeId' => 'node_type',
+     'enforceIsNew' => NULL,
+     'typedData' => NULL,
+     'cacheContexts' => 
+    array (
+    ),
+     'cacheTags' => 
+    array (
+    ),
+     'cacheMaxAge' => -1,
+     '_serviceIds' => 
+    array (
+    ),
+     '_entityStorages' => 
+    array (
+    ),
+     'dependencies' => 
+    array (
+    ),
+     'isSyncing' => false,
+  )),
+)
+----
+
+So the settings are resolved via the form, which has an attached `ConfigEntity`. The schema for this is built dynamically based on the widgets included in the form using the special `[%key]` and `[%parent]` placeholders. These allow the schema to reference values from the include widgets.
+
+`[%key]` 
+
+
+If we look at some real exported config, we see:
+
+[source,yaml]
+----
+...
+content:
+  ...
+  field_example_field:
+    weight: '1'
+    settings:
+      count_type: letter
+    third_party_settings: {  }
+    type: example_widget_basic_widget
+    region: content
+  ...
+----
+
+This from the template schema in `core.entity.schema.yml`:
+
+[source,php]
+----
+    content:
+      type: sequence
+      label: 'Field widgets'
+      sequence:
+        type: mapping
+        label: 'Field widget'
+        mapping:
+          type:
+            type: string
+            label: 'Widget type machine name'
+          weight:
+            type: integer
+            label: 'Weight'
+          region:
+            type: string
+            label: 'Region'
+          settings:
+            type: field.widget.settings.[%parent.type]
+            label: 'Settings'
+          third_party_settings:
+            type: sequence
+            label: 'Third party settings'
+            sequence:
+              type: field.widget.third_party.[%key]
+----
+
+For our example widget, `[%key]` resolves to `field_example_widget`, So our third-party settings would be set via a schema value of `field.widget.third_party.field_example_widget`. In practice I haven't seen a module that uses third-party settings, but there's a test example of this in core in the `field_third_party_test` module.
+
+The more interesting value is `[%parent.type]`. The parent is the widget, and the type is the id of the widget plugin, so for our example widget it resolves to `example_widget_base_widget`. This will be used by all widgets, and then provides the reference back to the widget type when the settings are loaded.
+
+// @todo What are third-party settings even for?

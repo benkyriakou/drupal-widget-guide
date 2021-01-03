@@ -1,0 +1,304 @@
+Third-party settings are a part of the form API which allows you to add your own settings options to one or more widgets using hooks. The use-case for this might be to add a global setting (like a checkbox to manage a front-end display option) to a group of widgets in your site, or to enhance a particular kind of widget without extending the class.
+
+If you're in a situation where the most appropriate option is to create a new widget by extending the class, this probably isn't for you.
+
+=== The API
+
+We can find information about the interface portion of the API in `field_ui.api.php`:
+
+[source,php]
+----
+
+/**
+ * Allow modules to add settings to field widgets provided by other modules.
+ *
+ * @param \Drupal\Core\Field\WidgetInterface $plugin
+ *   The instantiated field widget plugin.
+ * @param \Drupal\Core\Field\FieldDefinitionInterface $field_definition
+ *   The field definition.
+ * @param string $form_mode
+ *   The entity form mode.
+ * @param array $form
+ *   The (entire) configuration form array.
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ *   The form state.
+ *
+ * @return array
+ *   Returns the form array to be built.
+ *
+ * @see \Drupal\field_ui\Form\EntityFormDisplayEditForm::thirdPartySettingsForm()
+ */
+function hook_field_widget_third_party_settings_form(\Drupal\Core\Field\WidgetInterface $plugin, \Drupal\Core\Field\FieldDefinitionInterface $field_definition, $form_mode, array $form, \Drupal\Core\Form\FormStateInterface $form_state) {
+  $element = [];
+  // Add a 'my_setting' checkbox to the settings form for 'foo_widget' field
+  // widgets.
+  if ($plugin->getPluginId() == 'foo_widget') {
+    $element['my_setting'] = [
+      '#type' => 'checkbox',
+      '#title' => t('My setting'),
+      '#default_value' => $plugin->getThirdPartySetting('my_module', 'my_setting'),
+    ];
+  }
+  return $element;
+}
+
+/**
+ * Alters the field widget settings summary.
+ *
+ * @param array $summary
+ *   An array of summary messages.
+ * @param array $context
+ *   An associative array with the following elements:
+ *   - widget: The widget object.
+ *   - field_definition: The field definition.
+ *   - form_mode: The form mode being configured.
+ *
+ * @see \Drupal\field_ui\Form\EntityFormDisplayEditForm::alterSettingsSummary()
+ */
+function hook_field_widget_settings_summary_alter(array &$summary, array $context) {
+  // Append a message to the summary when an instance of foo_widget has
+  // mysetting set to TRUE for the current view mode.
+  if ($context['widget']->getPluginId() == 'foo_widget') {
+    if ($context['widget']->getThirdPartySetting('my_module', 'my_setting')) {
+      $summary[] = t('My setting enabled.');
+    }
+  }
+}
+----
+
+Note that these hooks are part of the `field_ui` module, because they only affect the interface portions of managing third-party settings. Anything that implements these settings will have to use other mechanisms.
+
+The way these interact with the widget is via the https://api.drupal.org/api/drupal/core%21lib%21Drupal%21Core%21Config%21Entity%21ThirdPartySettingsInterface.php/interface/ThirdPartySettingsInterface/8.9.x[`ThirdPartySettingsInterface`]--since it's a fairly small interface, I'll include it here for reference:
+
+[source,php]
+----
+  /**
+   * Sets the value of a third-party setting.
+   *
+   * @param string $module
+   *   The module providing the third-party setting.
+   * @param string $key
+   *   The setting name.
+   * @param mixed $value
+   *   The setting value.
+   *
+   * @return $this
+   */
+  public function setThirdPartySetting($module, $key, $value);
+
+  /**
+   * Gets the value of a third-party setting.
+   *
+   * @param string $module
+   *   The module providing the third-party setting.
+   * @param string $key
+   *   The setting name.
+   * @param mixed $default
+   *   The default value
+   *
+   * @return mixed
+   *   The value.
+   */
+  public function getThirdPartySetting($module, $key, $default = NULL);
+
+  /**
+   * Gets all third-party settings of a given module.
+   *
+   * @param string $module
+   *   The module providing the third-party settings.
+   *
+   * @return array
+   *   An array of key-value pairs.
+   */
+  public function getThirdPartySettings($module);
+
+  /**
+   * Unsets a third-party setting.
+   *
+   * @param string $module
+   *   The module providing the third-party setting.
+   * @param string $key
+   *   The setting name.
+   *
+   * @return mixed
+   *   The value.
+   */
+  public function unsetThirdPartySetting($module, $key);
+
+  /**
+   * Gets the list of third parties that store information.
+   *
+   * @return array
+   *   The list of third parties.
+   */
+  public function getThirdPartyProviders();
+
+}
+----
+
+This interface is very simple, and creates a contract for how a class should get and set third-party settings from other code outside of the implementing module. For our purposes, this is implemented by `PluginBase` (which is then extended by `WidgetBase`). 
+
+The form itself is surfaced by `EntityDisplayFormBase` as part of the `buildFieldRow()` method--this retrieves both the settings form and and third-party settings forms for the widget, then renders them out.
+
+The settings are loaded with the configuration entity in 
+
+// @todo I feel like I found a better example of how these settings are merged in? Where default settings are built for the form.
+
+We can create our own example of a module that adds some third-party settings to a widget. Let's take the `StringTextfieldWidget` and add a setting that appends a variable number of exclamation marks to the text.
+
+As with our field widget settings, we need a schema that these settings will adhere to. We can look back at our exploration of the form configuration entity schema to figure out what name this should have:
+
+[source,php]
+----
+    content:
+      type: sequence
+      label: 'Field widgets'
+      sequence:
+        type: mapping
+        label: 'Field widget'
+        mapping:
+          type:
+            type: string
+            label: 'Widget type machine name'
+          weight:
+            type: integer
+            label: 'Weight'
+          region:
+            type: string
+            label: 'Region'
+          settings:
+            type: field.widget.settings.[%parent.type]
+            label: 'Settings'
+          third_party_settings:
+            type: sequence
+            label: 'Third party settings'
+            sequence:
+              type: field.widget.third_party.[%key]
+----
+
+So a third-party setting schema has the name `field.widget.third_party.[%key]`, where `[%key]` is the widget id as that's the settings key for the widget.
+
+// @todo what does this mean for multiple modules with third-party settings?
+
+So, for our third-party settings, let's add a field for "colour":
+
+[source,yaml]
+----
+field.widget.third_party.string_textfield:
+  type: 'Mapping'
+  label: 'Third party settings for string widget'
+  mapping:
+    colour:
+      type: string
+      label: 'Field widget colour'
+
+----
+
+Now we need to add the matching settings form. This should all be familiar from adding a regular settings form for a widget, except this time we're doing it with hooks:
+
+[source,php]
+----
+/**
+ * Implements hook_field_widget_third_party_settings_form().
+ */
+function foobar_field_widget_third_party_settings_form(\Drupal\Core\Field\WidgetInterface $plugin, \Drupal\Core\Field\FieldDefinitionInterface $field_definition, $form_mode, array $form, \Drupal\Core\Form\FormStateInterface $form_state) {
+  if ($plugin->getPluginId() === 'string_textfield' && $plugin->getThirdPartySetting('foobar', 'colour')) {
+    $element['colour'] = [
+      '#type' => 'textfield',
+      '#title' => t('Colour'),
+      '#default_value' => $plugin->getThirdPartySetting('foobar', 'colour', 'none'),
+    ];
+
+    return $element;
+  }
+}
+----
+
+This hook gets called for all plugins, so we check the plugin ID (`$plugin` here is the current instance of the widget class) then set the form element if it's the one we're after. You'll see we're using one of the `ThirdPartySettingsInterface` methods to retrieve the value of the setting from the widget class.
+
+The final part of the interface implementation is to add the field value to the settings summary:
+
+[source,php]
+----
+/**
+ * Implements hook_field_widget_settings_summary_alter().
+ */
+function foobar_field_widget_settings_summary_alter(array &$summary, array $context) {
+  /** @var \Drupal\Core\Field\WidgetInterface $widget */
+  $widget = $context['widget'];
+
+  if ($widget->getPluginId() === 'string_textfield') {
+    $summary[] = t('Colour: @colour', ['@colour' => $widget->getThirdPartySetting('foobar', 'colour')]);
+  }
+}
+----
+
+You'll see that we haven't added a default setting anywhere in the same way we would with a `defaultSettings()` method in the widget class. Unfortunately it looks like at this time this isn't possible without altering the parent form, so the default will be that the widget has no value until the settings form is first saved. You may therefore have to take this into account in any code that uses the settings later on.
+
+=== The implementation
+
+We've now added our settings, and we can retrieve them from the widget object with `getThirdPartySetting`. So how do we make them affect our widget display?
+
+For this we turn to `hook_field_widget_form_alter()`. From `field.api.php`:
+
+[source,php]
+----
+/**
+ * Alter forms for field widgets provided by other modules.
+ *
+ * This hook can only modify individual elements within a field widget and
+ * cannot alter the top level (parent element) for multi-value fields. In most
+ * cases, you should use hook_field_widget_multivalue_form_alter() instead and
+ * loop over the elements.
+ *
+ * @param $element
+ *   The field widget form element as constructed by
+ *   \Drupal\Core\Field\WidgetBaseInterface::form().
+ * @param $form_state
+ *   The current state of the form.
+ * @param $context
+ *   An associative array containing the following key-value pairs:
+ *   - form: The form structure to which widgets are being attached. This may be
+ *     a full form structure, or a sub-element of a larger form.
+ *   - widget: The widget plugin instance.
+ *   - items: The field values, as a
+ *     \Drupal\Core\Field\FieldItemListInterface object.
+ *   - delta: The order of this item in the array of subelements (0, 1, 2, etc).
+ *   - default: A boolean indicating whether the form is being shown as a dummy
+ *     form to set default values.
+ *
+ * @see \Drupal\Core\Field\WidgetBaseInterface::form()
+ * @see \Drupal\Core\Field\WidgetBase::formSingleElement()
+ * @see hook_field_widget_WIDGET_TYPE_form_alter()
+ * @see hook_field_widget_multivalue_form_alter()
+ */
+function hook_field_widget_form_alter(&$element, \Drupal\Core\Form\FormStateInterface $form_state, $context) {
+  // Add a css class to widget form elements for all fields of type mytype.
+  $field_definition = $context['items']->getFieldDefinition();
+  if ($field_definition->getType() == 'mytype') {
+    // Be sure not to overwrite existing attributes.
+    $element['#attributes']['class'][] = 'myclass';
+  }
+}
+----
+
+If you've been paying attention, you'll see that we've switched module APIs--since we're no longer dealing with the UI portion of the widget, and instead are changing the widget itself, we're now in the Field API. This means that, if your custom setting is set, it will apply even when the Field UI module is disabled (as you'd expect).
+
+Let's add a hook to alter our widget form:
+
+
+[source,php]
+----
+/**
+ * Implements hook_field_widget_form_alter().
+ */
+function foobar_field_widget_form_alter(&$element, \Drupal\Core\Form\FormStateInterface $form_state, $context) {
+  /** @var \Drupal\Core\Field\WidgetBaseInterface $widget */
+  $widget = $context['widget'];
+
+  if ($widget->getPluginId() === 'string_textfield') {
+    // @todo do this with proper attached styles
+    $element['value']['#attributes']['style'] = 'color: ' .$widget->getThirdPartySetting('foobar', 'colour', 'inherit') . ';';
+  }
+}
+----

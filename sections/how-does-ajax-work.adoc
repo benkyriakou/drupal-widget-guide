@@ -1,0 +1,190 @@
+// @todo Does this work okay if we have multiple fields and/or repeating fields?
+
+Because widget forms are standalone elements of a larger form, the general method of interacting with them using buttons is via AJAX actions. It is possible to add handlers to the parent form, but we then have to deal with the whole form array rather than the specific part we’re interested in for the widget, and isn't a standard way of interacting with them in core.
+
+Before doing any more on this, it’s worth a quick recap of the https://www.drupal.org/docs/drupal-apis/javascript-api/ajax-forms[form AJAX API], since it’s something that not everyone uses a lot (myself included).
+
+AJAX events can be added to any element that creates an event, with the general format:
+
+[source,php]
+----
+'#ajax' => [
+    'callback' => '::myAjaxCallback', // don't forget :: when calling a class method.
+    //'callback' => [$this, 'myAjaxCallback'], //alternative notation
+    'disable-refocus' => FALSE, // Or TRUE to prevent re-focusing on the triggering element.
+    'event' => 'change',
+    'wrapper' => 'edit-output', // This element is updated with this AJAX callback.
+    'progress' => [
+      'type' => 'throbber',
+      'message' => $this->t('Verifying entry...'),
+    ],
+  ]
+----
+
+See https://www.drupal.org/docs/drupal-apis/ajax-api/basic-concepts#sub_form[the AJAX form API documentation] for a full list of properties that can be applied to an `#ajax` attribute.
+
+Note that an `#ajax` attribute can only have a single callback, unlike a property like `#submit` where we can attach an array of callbacks. All other callback notation applies though, so we can either attach the callback to a static class method, a method on an existing object instance, or a regular function.
+
+// @todo investigate this - can we really attach the current instance?
+
+We pick the event that invokes the callback, along with some properties of the AJAX response - for example, whether the element is refocussed after the callback is executed, what the progress indicator is, and what ID the element to update has.
+
+The callback function is expected to return an `AjaxResponse`, which contains one or more commands - see https://www.drupal.org/docs/drupal-apis/ajax-api/core-ajax-callback-commands[the AJAX commands documentation] for a full list of the available commands. These can replace HTML, add CSS, display an alert, and many other common AJAX actions. Alternatively, you can create your own command plugin that implements the `CommandInterface`, a subject which is beyond the scope of this guide.
+
+// @todo Mention the command that lets you invoke arbitrary JS
+
+Essentially an `AjaxResponse` is a way of packaging a set of pre-defined configurable JavaScript actions to be executed in the DOM.
+
+As usual, we can take a look at what core does to see some examples of
+`#ajax` in widgets. In the `MediaLibraryWidget` we see a callback to open the media library modal:
+
+[source,php]
+----
+$element['open_button'] = [
+  '#type' => 'button',
+  '#value' => $this->t('Add media'),
+  '#name' => $field_name . '-media-library-open-button' . $id_suffix,
+  '#attributes' => [
+    'class' => [
+      'js-media-library-open-button',
+    ],
+    // The jQuery UI dialog automatically moves focus to the first :tabbable
+    // element of the modal, so we need to disable refocus on the button.
+    'data-disable-refocus' => 'true',
+  ],
+  '#media_library_state' => $state,
+  '#ajax' => [
+    'callback' => [static::class, 'openMediaLibrary'],
+    'progress' => [
+      'type' => 'throbber',
+      'message' => $this->t('Opening media library.'),
+    ],
+  ],
+  // Allow the media library to be opened even if there are form errors.
+  '#limit_validation_errors' => [],
+];
+----
+
+[source,php]
+----
+public static function openMediaLibrary(array $form, FormStateInterface $form_state) {
+  $triggering_element = $form_state->getTriggeringElement();
+  $library_ui = \Drupal::service('media_library.ui_builder')->buildUi($triggering_element['#media_library_state']);
+  $dialog_options = MediaLibraryUiBuilder::dialogOptions();
+  return (new AjaxResponse())
+    ->addCommand(new OpenModalDialogCommand($dialog_options['title'], $library_ui, $dialog_options));
+}
+----
+
+We can do some validation of our form using AJAX, and return a message depending on the validity of the field content:
+
+[source,php]
+----
+  public function formElement(FieldItemListInterface $items, $delta, array $element, array &$form, FormStateInterface $form_state): array {
+    $element['value'] = array_merge($element, [
+      '#type' => 'textfield',
+      '#default_value' => isset($items[$delta]->value) ?? NULL,
+      '#prefix' => '<span id="foobar">',
+      '#suffix' => '</span>',
+    ]);
+
+    $element['submit'] = [
+      '#type' => 'submit',
+      '#value' => $this->t('Validate'),
+      '#ajax' => [
+        'callback' => [static::class, 'doAjax'],
+        'wrapper' => 'foobar',
+        'progress' => [
+          'type' => 'throbber',
+        ]
+      ]
+    ];
+
+    $element['#element_validate'][] = [$this, 'validateElement'];
+
+    return $element;
+  }
+
+  public static function doAjax($form, FormStateInterface $form_state) {
+    /** @var FormValidatorInterface $form_validator */
+    $form_validator = \Drupal::service('form_validator');
+    $form_id = $form_state->getFormObject()->getFormId();
+    $form_validator->validateForm($form_id, $form, $form_state);
+
+    if (FormState::hasAnyErrors()) {
+      $message = t('Invalid');
+      $type = MessengerInterface::TYPE_ERROR;
+    }
+    else {
+      $message = t('Valid');
+      $type = MessengerInterface::TYPE_STATUS;
+    }
+
+    $response = new AjaxResponse();
+    $response->addCommand(new MessageCommand($message, NULL, ['type'  => $type]));
+
+    return $response;
+  }
+----
+
+We don’t actually need to do the validation bit since the AJAX callback does that already, so the AJAX callback can be simplified to:
+
+[source,php]
+----
+  public static function doAjax($form, FormStateInterface $form_state) {
+    $triggering_element = $form_state->getTriggeringElement();
+    $wrapper_id = $triggering_element['#ajax']['wrapper'];
+    $parents = array_slice($triggering_element['#array_parents'], 0, count($triggering_element['#array_parents']) - 1);
+    $element = NestedArray::getValue($form, $parents);
+
+    if ($form_state->getError($element)) {
+      $message = t('Invalid');
+      $type = MessengerInterface::TYPE_ERROR;
+    }
+    else {
+      $message = t('Valid');
+      $type = MessengerInterface::TYPE_STATUS;
+    }
+
+    $response = new AjaxResponse();
+    $response->addCommand(new MessageCommand($message, NULL, ['type'  => $type]));
+    $response->addCommand(new ReplaceCommand("#$wrapper_id", $element['value']));
+
+    return $response;
+  }
+----
+
+Take a look at `AjaxFormHelperTrait` - it has some interesting AJAX stuff for replacing the form.
+
+https://codelekhk.com/2018/07/15/drupal-8-ajax-validations-for-custom-form https://drupal.stackexchange.com/questions/215699/how-can-i-get-the-form-validated-with-ajax
+
+This isn’t great - the errors are divorced from the element, and we’re having to do a lot of manipulation. We could re-render the whole form if we have an error (see the `ajaxSubmit()` method on the
+`AjaxFormHelperTrait`) but it would be nicer to just re-render this element with all of the error information.
+
+In core there’s the https://www.drupal.org/docs/8/core/modules/inline-form-errors[Inline Form Errors] module which will let us do just that. Enable this and try re-validating our field. If you’re using ddev you can enable the module with:
+
+....
+ddev drush en inline_form_errors
+....
+
+We can now simplify our AJAX callback even more:
+
+[source,php]
+----
+public static function doAjax($form, FormStateInterface $form_state) {
+  $triggering_element = $form_state->getTriggeringElement();
+  $wrapper_id = $triggering_element['#ajax']['wrapper'];
+  $parents = array_slice($triggering_element['#array_parents'], 0, count($triggering_element['#array_parents']) - 1);
+  $element = NestedArray::getValue($form, $parents);
+
+  $response = new AjaxResponse();
+  $response->addCommand(new ReplaceCommand("#$wrapper_id", $element['value']));
+
+  return $response;
+}
+----
+
+Since the AJAX processing already validates the form for us, and we want to re-render the form every time regardless of whether it’s successful
+(since if there’s an error and the content is fixed, clicking validate should remove the error), this works fine for us.
+
+There are still some things that could be made nicer here, for example adding a positive message for valid field content, but I’ll leave that as an exercise for the reader.

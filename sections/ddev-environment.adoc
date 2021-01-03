@@ -1,0 +1,12 @@
+I’m assuming you already have a basic Drupal 8 environment set up--if not, the easiest way to get started is with the ddev installer--go ahead, I’ll wait.
+
+Once you have your Drupal environment set up, go ahead and install Drupal console with `ddev composer install --dev drupal/console` omit the `ddev` if you’re using something else). If you are using ddev, we can make life a bit easier by adding a ddev command so that you can invoke the console from your host machine. In the `.ddev/commands/web` directory, create a file called `drupal` with the following content:
+
+[source,bash]
+----
+#!/bin/bash
+
+/var/www/html/vendor/bin/drupal "$@"
+----
+
+Make it executable with `chmod 775 .ddev/commands/web/drupal`, and you should be able to run `ddev drupal` and get the output from Drupal console on the ddev container.

@@ -1,0 +1,11 @@
+I’ve been developing for Drupal 8 for about three years now and, whilst it’s been a marked improvement from Drupal 7 in many ways, I’ve often found myself looking for documentation that doesn’t exist. After numerous expeditions into the Drupal source code I started documenting my findings in blog posts, partly for my own memory and partly to help others having the same issue.
+
+// Say something about Drupal 9 compatibility
+
+At a certain point this felt like it needed a more thorough treatment--how many others were struggling through the core APIs and being held back by the lack of comprehensive documentation? Whilst there are lots of great ebooks already out there, most cover development at a high level rather than diving into a particular part of the API in detail.
+
+This is my aim with this publication--to not only give you the information you need to create a widget, but also to explore the API in enough detail that you’re comfortable venturing outside the limits of the code herein to create your own, more advanced, widgets with confidence.
+
+So come along with me, on a journey through the widget API and beyond.
+
+I should note at this point that this was written (and all code was tested) against Drupal 8.9.x, which is the current Drupal version at the time of writing. However, I'm confident that this code will be equally applicable to Drupal 9 given the widget API has not changed--the `WidgetInterface` is exactly the same, and `WidgetBase` has lost a single trait.

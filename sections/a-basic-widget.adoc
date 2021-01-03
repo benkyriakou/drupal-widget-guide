@@ -1,0 +1,245 @@
+So let’s start getting into the interesting bits first--how to make a widget. The code below is written against Drupal 8, but since the API hasn’t changed in Drupal 9 at the time of writing I’d expect it all to be forwards-compatible. If you run into any issues, see the errata section for more information.
+
+Widgets are an example of a Drupal Plugin, which means we need to create and annotate a particular class. To get started we're going to use Drupal console to generate a module, since the topic of this book isn't creating modules. We could also create the `FieldWidget` using Drupal Console, but at this stage I'd prefer to walk through the process so that you're aware of all of the steps--later on I'll demonstrate how to do this more quickly with Drupal Console.
+
+To get started, let’s generate a module to add our widget to:
+
+[source,text]
+----
+> ddev drupal generate:module
+
+ // Welcome to the Drupal module generator
+
+ Enter the new module name:
+ > Example widget
+
+ Enter the module machine name [example_widget]:
+ >
+
+ Enter the module Path [modules/custom]:
+ >
+
+ Enter module description [My Awesome Module]:
+ > A module for my example widget
+
+ Enter package name [Custom]:
+ >
+
+ Enter Drupal Core version [8.x]:
+ >
+
+ Do you want to generate a .module file? (yes/no) [yes]:
+ > yes
+
+ Define module as feature (yes/no) [no]:
+ > no
+
+ Do you want to add a composer.json file to your module? (yes/no) [yes]:
+ > no
+
+ Would you like to add module dependencies? (yes/no) [no]:
+ > yes
+
+ Module dependencies separated by commas (i.e. context, panels):
+ > text
+
+ Do you want to generate a unit test class? (yes/no) [yes]:
+ > no
+
+ Do you want to generate a themeable template? (yes/no) [yes]:
+ > no
+
+ Do you want proceed with the operation? (yes/no) [yes]:
+ > yes
+----
+
+This will generate a basic module structure like this:
+
+[source,text]
+----
+web/modules/custom/
+└── example_widget
+     ├── example_widget.info.yml
+     └── example_widget.module
+----
+
+We also want to create the directories our Plugin code will live in. The Drupal autoloader will look for classes in the `src` directory of modules, so that will be our first level. Next the FieldWidget is a `Plugin`, and it's a `Field` plugin of type `FieldWidget`, so we end up with this structure:
+
+[source,text]
+----
+web/modules/custom/
+└── example_widget/
+    ├── example_widget.info.yml
+    ├── example_widget.module
+    └── src
+        └── Plugin
+            └── Field
+                └── FieldWidget
+----
+
+Inside this directory we can then create our plugin file. Let's call our widget class `ExampleTextFieldWidget`, so for https://www.drupal.org/docs/develop/standards/psr-4-namespaces-and-autoloading-in-drupal-8[compatibility with PSR-4] we need the file to have the same name. Inside that file we can create our widget plugin class;
+
+[source,php]
+----
+<?php
+
+namespace Drupal\example_widget\Plugin\Field\FieldWidget;
+
+use Drupal\Core\Field\WidgetBase;
+
+class ExampleTextFieldWidget extends WidgetBase {
+
+}
+----
+
+To let Drupal recognise this as a plugin we have to add the https://api.drupal.org/api/drupal/core%21lib%21Drupal%21Core%21Field%21Annotation%21FieldWidget.php/class/FieldWidget/8.9.x[appropriate annotation]:
+
+[source,php]
+----
+<?php
+
+namespace Drupal\example_widget\Plugin\Field\FieldWidget;
+
+use Drupal\Core\Field\WidgetBase;
+
+/**
+ * Plugin implementation of the 'example_text_field_widget' widget.
+ *
+ * @FieldWidget(
+ *   id = "example_text_field_widget",
+ *   module = "example_widget",
+ *   label = @Translation("Example text field widget"),
+ *   field_types = {
+ *     "string"
+ *   }
+ * )
+ */
+class ExampleTextFieldWidget extends WidgetBase {
+
+}
+----
+
+We also have to implement the only `WidgetInterface` method that isn't covered by `WidgetBase`--`formElement()`:
+
+[source,php]
+----
+<?php
+
+namespace Drupal\example_widget\Plugin\Field\FieldWidget;
+
+use Drupal\Core\Field\WidgetBase;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Field\FieldItemListInterface;
+
+/**
+ * Plugin implementation of the 'example_text_field_widget' widget.
+ *
+ * @FieldWidget(
+ *   id = "example_text_field_widget",
+ *   module = "example_widget",
+ *   label = @Translation("Example text field widget"),
+ *   field_types = {
+ *     "string"
+ *   }
+ * )
+ */
+class ExampleTextFieldWidget extends WidgetBase {
+
+  /**
+   * {@inheritdoc}
+   */
+  public function formElement(FieldItemListInterface $items, $delta, array $element, array &$form, FormStateInterface $form_state): array {
+    return [];
+  }
+
+}
+----
+
+This is now a valid enough Widget plugin that you can enable it for a field--enable the module with `ddev drush moi example_widget` (or `ddev drush en example_widget`) if you're using an older version of Drush, and create a new *Text (plain)* field on a node bundle. On the *Manage Form Display* tab you will see your new Widget available as *Example text field widget*--you can enable it if you want, but right now you won't see anything output if you edit the node. Let's deal with that next. 
+
+Since this is a widget for a text field, we want to add some kind of element we can enter text in. Let's create a simple textfield:
+
+[source,php]
+----
+<?php
+
+namespace Drupal\example_widget\Plugin\Field\FieldWidget;
+
+use Drupal\Core\Field\WidgetBase;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Field\FieldItemListInterface;
+
+/**
+ * Plugin implementation of the 'example_text_field_widget' widget.
+ *
+ * @FieldWidget(
+ *   id = "example_text_field_widget",
+ *   module = "example_widget",
+ *   label = @Translation("Example text field widget"),
+ *   field_types = {
+ *     "string"
+ *   }
+ * )
+ */
+class ExampleTextFieldWidget extends WidgetBase {
+
+  /**
+   * {@inheritdoc}
+   */
+  public function formElement(FieldItemListInterface $items, $delta, array $element, array &$form, FormStateInterface $form_state): array {
+    $element['value'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Text'),
+      '#default_value' => $items[$delta]->value ?? '',
+    ];
+
+    return $element;
+  }
+
+}
+----
+
+If you now edit the field you created that uses this widget, you'll be able to edit and save text, but it doesn't show up in the field when you go to edit it (although it will appear on the front-end). We need to add a default value:
+
+
+[source,php]
+----
+<?php
+
+namespace Drupal\example_widget\Plugin\Field\FieldWidget;
+
+use Drupal\Core\Field\WidgetBase;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Field\FieldItemListInterface;
+
+/**
+ * Plugin implementation of the 'example_text_field_widget' widget.
+ *
+ * @FieldWidget(
+ *   id = "example_text_field_widget",
+ *   module = "example_widget",
+ *   label = @Translation("Example text field widget"),
+ *   field_types = {
+ *     "string"
+ *   }
+ * )
+ */
+class ExampleTextFieldWidget extends WidgetBase {
+
+  /**
+   * {@inheritdoc}
+   */
+  public function formElement(FieldItemListInterface $items, $delta, array $element, array &$form, FormStateInterface $form_state): array {
+    $element['value'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Text'),
+      '#default_value' => $items[$delta]->value ?? '',
+    ];
+
+    return $element;
+  }
+
+}
+----
+
+Now you can edit the page, give the field a value, save it, and see it reflected in your widget to edit again. Congratulations--you've made your first `FieldWidget`!

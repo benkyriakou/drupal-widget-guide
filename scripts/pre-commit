@@ -1,0 +1,12 @@
+#! /bin/bash
+
+set -o errexit -o nounset -o pipefail
+
+for FILE in $(find . -type "f" -name "*.adoc")
+do
+    # Replace encoded exclamation marks in API URLs.
+    if [[ "$(grep -c "%21")" -gt 0 ]]
+    then
+        sed -i "s/%21/\!/g" "$(realpath "$FILE")"
+    fi
+done

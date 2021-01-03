@@ -1,0 +1,398 @@
+Our widget is an implementation of the `FieldWidget` plugin which, if you’ve used plugins before, should look pretty familiar. First we have the annotation that defines the plugin:
+
+
+[source,php]
+----
+/**
+ * Plugin implementation of the 'example_widget_field_widget' widget.
+ *
+ * @FieldWidget( <1>
+ *   id = "example_widget_field_widget",
+ *   module = "example_widget",
+ *   label = @Translation("Example widget field widget"),
+ *   field_types = {
+ *     "string"
+ *   }
+ * )
+ */
+----
+<1> For the full `@FieldWidget` annotation source, see https://api.drupal.org/api/drupal/core!lib!Drupal!Core!Field!Annotation!FieldWidget.php/class/FieldWidget/8.9.x[\Drupal\Core\Field\Annotation\FieldWidget].
+
+
+// @todo I suspect this is NOT globally unique given the module is included too
+
+Here it’s given a unique ID (prefixed with the module name), the implementing module, a translatable (human-readable) label, and a list of field types that it supports using IDs from corresponding `FieldType` plugins. Not included in this annotation are `multiple_values`, which defines whether the widget handles multiple values at once (default `FALSE`) and `weight` which alters the sorting of the widget relative to other widgets during discovery (default `NULL`).
+
+It’s important to note that the plugin is also in a specific directory -
+`src/Plugin/Field/FieldWidget`. This is both a discovery mechanism, and a useful convention that makes it easy to see what, if any, widget plugins a module implements.
+
+After the annotation, we get into some code:
+
+[source,php]
+----
+class ExampleWidgetFieldWidget extends WidgetBase {
+  //...
+}
+----
+
+The widget class extents `WidgetBase`, which in turn implements
+`WidgetInterface`. The class hierarchy looks like this:
+
+image:WidgetBase.png[WidgetBase class hierarchy]
+
+This doesn’t really tell us much about what we need to do to make a new widget. Let’s take a look at what we need to implement from WidgetBase.
+If we create a new class that extends WidgetBase, the only method from the interface that we need to implement is `formElement()`. As you can probably guess from the name, this lets us define the input form element for this field input. From `WidgetInterface`:
+
+[source,php]
+----
+  /**
+   * Returns the form for a single field widget.
+   *
+   * Field widget form elements should be based on the passed-in $element, which
+   * contains the base form element properties derived from the field
+   * configuration.
+   *
+   * The BaseWidget methods will set the weight, field name and delta values for
+   * each form element. If there are multiple values for this field, the
+   * formElement() method will be called as many times as needed.
+   *
+   * Other modules may alter the form element provided by this function using
+   * hook_field_widget_form_alter() or
+   * hook_field_widget_WIDGET_TYPE_form_alter().
+   *
+   * The FAPI element callbacks (such as #process, #element_validate,
+   * #value_callback, etc.) used by the widget do not have access to the
+   * original $field_definition passed to the widget's constructor. Therefore,
+   * if any information is needed from that definition by those callbacks, the
+   * widget implementing this method, or a
+   * hook_field_widget[_WIDGET_TYPE]_form_alter() implementation, must extract
+   * the needed properties from the field definition and set them as ad-hoc
+   * $element['#custom'] properties, for later use by its element callbacks.
+   *
+   * @param \Drupal\Core\Field\FieldItemListInterface $items
+   *   Array of default values for this field.
+   * @param int $delta
+   *   The order of this item in the array of sub-elements (0, 1, 2, etc.).
+   * @param array $element
+   *   A form element array containing basic properties for the widget:
+   *   - #field_parents: The 'parents' space for the field in the form. Most
+   *       widgets can simply overlook this property. This identifies the
+   *       location where the field values are placed within
+   *       $form_state->getValues(), and is used to access processing
+   *       information for the field through the getWidgetState() and
+   *       setWidgetState() methods.
+   *   - #title: The sanitized element label for the field, ready for output.
+   *   - #description: The sanitized element description for the field, ready
+   *     for output.
+   *   - #required: A Boolean indicating whether the element value is required;
+   *     for required multiple value fields, only the first widget's values are
+   *     required.
+   *   - #delta: The order of this item in the array of sub-elements; see $delta
+   *     above.
+   * @param array $form
+   *   The form structure where widgets are being attached to. This might be a
+   *   full form structure, or a sub-element of a larger form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The current state of the form.
+   *
+   * @return array
+   *   The form elements for a single widget for this field.
+   *
+   * @see hook_field_widget_form_alter()
+   * @see hook_field_widget_WIDGET_TYPE_form_alter()
+   */
+  public function formElement(FieldItemListInterface $items, $delta, array $element, array &$form, FormStateInterface $form_state);
+----
+
+We can take a few interesting facts from this method. The first is that we’re not dealing with a complete form here--we have an `$element` which is what’s passed around to alter hooks and other methods. Although we have access to `$form` and `$form_state`, this isn’t like defining our own standalone form class where we have complete control over the parent form.
+
+// @todo although we do get the full form passed in, so presumably we can alter it at this point? Probably not a good idea, though.
+
+We can also see that we have access to a couple of variables which are more reminiscent of the field API than the form API--`$items` and
+`$delta`. The comments tell us that `$items` represents the default values for the field (i.e. the values that are currently saved), and
+`$delta` is the current value offset if we have multiple values in the field.
+
+The reference to `#field_parents` in the `$element` is useful, and is something we’ll be coming back to in future interactions with widgets.
+Since the widget form is part of an overall form, we often have to use the parent form elements to locate it in the `$form_state` array for the purposes of retrieving information about the widget. The parents also let us know what field the widget is attached to at the point that we interact with the widget in an entity context, since the widget itself is entirely agnostic of any concrete field instance.
+
+// @todo Talk a bit about `#field_parents` vs other types of parent attribute?
+
+If we jump back to our scaffolded widget we can see a basic form is defined in `formElement()`:
+
+[source,php]
+----
+  public function formElement(FieldItemListInterface $items, $delta, array $element, array &$form, FormStateInterface $form_state) {
+    $element['value'] = $element + [
+      '#type' => 'textfield',
+      '#default_value' => isset($items[$delta]->value) ? $items[$delta]->value : NULL,
+      '#size' => $this->getSetting('size'),
+      '#placeholder' => $this->getSetting('placeholder'),
+      '#maxlength' => $this->getFieldSetting('max_length'),
+    ];
+
+    return $element;
+  }
+----
+
+Most of this is standard form render element code--if the form side isn’t familiar to you I’d recommend taking a break here and giving the https://www.drupal.org/docs/drupal-apis/form-api[Form API] documentation a read, particularly the section on https://www.drupal.org/docs/drupal-apis/form-api/form-render-elements[Form Render Elements]. Don’t worry, I’ll wait.
+
+We can see the use of `$items` here in conjunction with `$delta` in the way we’d expect from the interface method comments--the relevant item is retrieved using the `$delta` offset in `$items`. The magic getter `+$items[$delta]->value+` is used to retrieve the actual default value--it’s important to note that the use of `value` here is not arbitrary and corresponds directly to the key name of the data in the schema (and since this is a simple widget, to the name of the form field used to set it). If we take a look at the core `StringItem` type we see this `schema()` method:
+
+[source,php]
+----
+public static function schema(FieldStorageDefinitionInterface $field_definition) {
+  return [
+    'columns' => [
+      'value' => [
+        'type' => $field_definition->getSetting('is_ascii') === TRUE ? 'varchar_ascii' : 'varchar',
+        'length' => (int) $field_definition->getSetting('max_length'),
+        'binary' => $field_definition->getSetting('case_sensitive'),
+      ],
+    ],
+  ];
+}
+----
+
+Remember earlier when I said the contract the `FieldWidget` has with the
+`FieldType` is the schema? This is that contract in action.
+
+For the rest of the form element attributes we’re getting our values from the `getSetting()` method:
+
+[source,php]
+----
+'#size' => $this->getSetting('size'),
+'#placeholder' => $this->getSetting('placeholder'),
+'#maxlength' => $this->getFieldSetting('max_length'),
+----
+
+This is what the schema and the rest of the boilerplate code is for--it manages a configuration object for this widget which allows setting and getting of configuration specific to the widget on this field instance.
+The new settings defined for our widget are `size` and `placeholder` -- `max_length` is defined on the `StringItem` class:
+
+[source,php]
+----
+public static function defaultStorageSettings() {
+  return [
+    'max_length' => 255,
+    'is_ascii' => FALSE,
+  ] + parent::defaultStorageSettings();
+}
+----
+
+(N.B. you can see the `is_ascii` setting is also defined here but doesn’t have an admin interface. This is generally defined as part of the field defaults, rather than being configurable).
+
+image:widget_form.png[Widget settings form]
+
+So going back to our `formElement`, we would expect the output of this to be a text input, with these attributes defined:
+
+[source,php]
+----
+public function formElement(FieldItemListInterface $items, $delta, array $element, array &$form, FormStateInterface $form_state) {
+  $element['value'] = $element + [
+    '#type' => 'textfield',
+    '#default_value' => isset($items[$delta]->value) ? $items[$delta]->value : NULL,
+    '#size' => $this->getSetting('size'),
+    '#placeholder' => $this->getSetting('placeholder'),
+    '#maxlength' => $this->getFieldSetting('max_length'),
+  ];
+
+  return $element;
+}
+----
+
+We can see the documentation for the https://api.drupal.org/api/drupal/core!lib!Drupal!Core!Render!Element!Textfield.php/class/Textfield/8.9.x[textfield render element] on Drupal.org, which outlines these properties. If we make a basic field in Drupal, we can see it outputs something like this:
+
+[source,html]
+----
+<input
+    data-drupal-selector="edit-field-plain-text-test-0-value"
+    type="text"
+    id="edit-field-plain-text-test-0-value"
+    name="field_plain_text_test[0][value]"
+    value=""
+    size="60"
+    maxlength="255"
+    placeholder="This is placeholder text"
+    class="form-text" />
+----
+
+We have the `size`, `max_length`, and `placeholder` attributes that are set on our widget, plus some other attributes generated from the name of this particular field instance.
+
+So we’ve covered the `formElement()` method, which was the only method we had to implement on our widget class extending `WidgetBase` to satisfy `WidgetInterface`, but what about the rest of the scaffolding that was generated by drupal console? The other methods that are set on our widget class are:
+
+[source,php]
+----
+public static function defaultSettings()
+public function settingsForm(array $form, FormStateInterface $form_state)
+public function settingsSummary()
+----
+
+We also have an `example_widget.schema.yml` file. Let’s take a look at that first, since that informs what these methods do with the settings:
+
+[source,yaml]
+----
+field.widget.settings.example_widget_field_widget:
+  type: mapping
+  label: 'Example widget field widget widget settings'
+  mapping:
+    size:
+      type: integer
+      label: 'Size'
+    placeholder:
+      type: textfield
+      label: 'Placeholder'
+----
+
+We see here that a `mapping` schema is defined with two new settings -
+`size` and `placeholder`--which match what we see in our widget class.
+If you’re not familiar with the Schema API now is a good time to have a https://www.drupal.org/docs/drupal-apis/configuration-api/configuration-schemametadata[quick browse of the documentation], but essentially what we have here is a dictionary data element which defines two named sub-elements: an integer called `size` and a textfield called `placeholder`.
+
+These are defined in a specially-named schema
+`field.widget.settings.example_widget_field_widget`, following the pattern `field.widget.settings.<widget_id>`. This isn’t ever invoked directly by the field widget code, and instead is part of the schema defined for the entity form display in `core.entity.schema.yml`:
+
+[source,yml]
+----
+# Overview configuration information for form mode displays.
+core.entity_form_display.*.*.*:
+  type: config_entity
+  label: 'Entity form display'
+  mapping:
+    ...
+    content:
+      type: sequence
+      label: 'Field widgets'
+      sequence:
+        type: mapping
+        label: 'Field widget'
+        mapping:
+          ...
+          settings:
+            type: field.widget.settings.[%parent.type]
+            label: 'Settings'
+          ...
+----
+
+This means that you’ll see your widget settings exported in the appropriate `core.entity_form_display.<entity>.<bundle>.<view_mode>` object for your entity form display, and you can debug the settings by querying the same object with `drush cget`.
+
+Once we know that these are the available settings, the rest of the methods in our widget class make more sense:
+
+[source,php]
+----
+public static function defaultSettings() {
+  return [
+    'size' => 60,
+    'placeholder' => '',
+  ] + parent::defaultSettings();
+}
+----
+
+The `defaultSettings()` method allows us to set default values for each of the settings when the widget is created--these are merged together with any parent values (which we can override at this stage if we’re extending an existing widget, such as with `is_ascii` as mentioned above). This is also the value which will be returned by `getSetting()` if no value is saved.
+
+[source,php]
+----
+public function settingsForm(array $form, FormStateInterface $form_state) {
+  $elements = [];
+
+  $elements['size'] = [
+    '#type' => 'number',
+    '#title' => t('Size of textfield'),
+    '#default_value' => $this->getSetting('size'),
+    '#required' => TRUE,
+    '#min' => 1,
+  ];
+  $elements['placeholder'] = [
+    '#type' => 'textfield',
+    '#title' => t('Placeholder'),
+    '#default_value' => $this->getSetting('placeholder'),
+    '#description' => t('Text that will be shown inside the field until a value is entered. This hint is usually a sample value or a brief description of the expected format.'),
+  ];
+
+  return $elements;
+}
+----
+
+The `settingsForm()` then provides the form for administrators to manage these settings. We don’t need to set our own submission function for these, just make sure the elements have the same keys as those defined in the schema.
+
+// @todo the submission is handled somewhere in the `field_ui` module, I’d guess in the form display. Find where this happens
+
+Finally we have the `settingsSummary()` method:
+
+[source,php]
+----
+public function settingsSummary() {
+  $summary = [];
+
+  $summary[] = t('Textfield size: @size', ['@size' => $this->getSetting('size')]);
+  if (!empty($this->getSetting('placeholder'))) {
+    $summary[] = t('Placeholder: @placeholder', ['@placeholder' => $this->getSetting('placeholder')]);
+  }
+
+  return $summary;
+}
+----
+
+This defines the summary string that you see on the "Manage form display" page for an entity:
+
+image:field_summary.png[Field summary on the manage form display page]
+
+The one thing we don’t see for this form is any kind of validation and submission handling, but on the definition of `settingsForm()` on
+`WidgetInterface` we see this comment:
+
+[source,php]
+----
+* Invoked from \Drupal\field_ui\Form\EntityDisplayFormBase to allow
+* administrators to configure the widget. The field_ui module takes care of
+* handling submitted form values.
+----
+
+If we drop a breakpoint into our `settingsForm()` method and take a look at the `$form`, we can see the underlying form is the https://api.drupal.org/api/drupal/core%21modules%21field_ui%21src%21Form%21EntityFormDisplayEditForm.php/class/EntityFormDisplayEditForm/8.9.x[`EntityFormDisplayEditForm`] in the `field_ui` module. This inherits from `EntityDisplayFormBase`, which defines a `submitForm()` and `multistepSubmit()` method. The default submission handler from `+$form_state->getSubmitHandlers()+` is `::multistepSubmit()`--the `submitForm()` method is invoked when you save the entire form display using the "Save" button.
+
+// @todo this is not true because of the order of events in `EntityDisplayFormBase->buildFieldRow()`
+
+// We need to alter the entire form by plugin row to add new handlers to the button
+
+// Presumably this is why our validation handler isn’t called_
+
+The class does not have a validation method, so no validation is carried out on the form by default. If you want to add your own submission or validation handlers, you can alter the `$form_state` in the `settingsForm()` method to add your own for the whole form, or add validation handlers on a per-element basis with the `#element_validate` attribute.
+
+So how do we add new handlers to the form submission? If we drop a breakpoint into the `multistepSubmit` function we can see what the triggering element is, and by using `#array_parents` figure out where it lives in the form array. If we do this for the title form element we get:
+
+[source,php]
+----
+array (
+  0 => 'fields',
+  1 => 'title',
+  2 => 'plugin',
+  3 => 'settings_edit_form',
+  4 => 'actions',
+  5 => 'save_settings',
+)
+----
+
+And if we look to the form we can see this is the "Update" button for the plugin.
+
+To edit the rows we need to check what the available field definitions are on the form display. See `+EntityDisplayFormBase->form()+`:
+
+[source,php]
+----
+public function form(array $form, FormStateInterface $form_state) {
+    $form = parent::form($form, $form_state);
+
+    $field_definitions = $this->getFieldDefinitions();
+    $extra_fields = $this->getExtraFields();
+
+    // ... some code omitted ...
+
+    // Field rows.
+    foreach ($field_definitions as $field_name => $field_definition) {
+      $table[$field_name] = $this->buildFieldRow($field_definition, $form, $form_state);
+    }
+
+    // Non-field elements.
+    foreach ($extra_fields as $field_id => $extra_field) {
+      $table[$field_id] = $this->buildExtraFieldRow($field_id, $extra_field);
+    }
+----
+
+Can’t use this because `getFieldDefinitions()` is protected…
+
+Can we do something with the entity to cross-reference the fields with the form? Is this available on the form object to us?

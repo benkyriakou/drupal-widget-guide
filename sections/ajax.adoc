@@ -1,0 +1,204 @@
+
+Because widget forms are standalone elements of a larger form, the general method of interacting with them using buttons is via AJAX actions. It is possible to add handlers to the parent form, but we then have to deal with the whole form array rather than the specific part we’re interested in for the widget, and isn't a standard way of interacting with them in core.
+
+Before doing any more on this, it’s worth a quick recap of the https://www.drupal.org/docs/drupal-apis/javascript-api/ajax-forms[form AJAX API], since it’s something that not everyone uses a lot (myself included).
+
+AJAX events can be added to any element that creates an event, with the general format:
+
+[source,php]
+----
+'#ajax' => [
+    'callback' => '::myAjaxCallback', // don't forget :: when calling a class method.
+    //'callback' => [$this, 'myAjaxCallback'], //alternative notation
+    'disable-refocus' => FALSE, // Or TRUE to prevent re-focusing on the triggering element.
+    'event' => 'change',
+    'wrapper' => 'edit-output', // This element is updated with this AJAX callback.
+    'progress' => [
+      'type' => 'throbber',
+      'message' => $this->t('Verifying entry...'),
+    ],
+  ]
+----
+
+See https://www.drupal.org/docs/drupal-apis/ajax-api/basic-concepts#sub_form[the AJAX form API documentation] for a full list of properties that can be applied to an `#ajax` attribute.
+
+Note that an `#ajax` attribute can only have a single callback, unlike a property like `#submit` where we can attach an array of callbacks. All other callback notation applies though, so we can either attach the callback to a static class method, a method on an existing object instance, or a regular function.
+
+// @todo investigate this - can we really attach the current instance?
+
+We pick the event that invokes the callback, along with some properties of the AJAX response - for example, whether the element is refocussed after the callback is executed, what the progress indicator is, and what ID the element to update has.
+
+The callback function is expected to return an `AjaxResponse`, which contains one or more commands - see https://www.drupal.org/docs/drupal-apis/ajax-api/core-ajax-callback-commands[the AJAX commands documentation] for a full list of the available commands. These can replace HTML, add CSS, display an alert, and many other common AJAX actions. Alternatively, you can create your own command plugin that implements the `CommandInterface`, a subject which is beyond the scope of this guide.
+
+// @todo Mention the command that lets you invoke arbitrary JS
+
+Essentially an `AjaxResponse` is a way of packaging a set of pre-defined configurable JavaScript actions to be executed in the DOM.
+
+Let's add a basic button that tells us how long the text in the field is. First we need to add a button to the output of `formElement()`:
+
+[source,php]
+----
+$element['value'] = [
+  '#type' => 'textfield',
+  '#title' => $this->t('Text'),
+  '#default_value' => $items[$delta]->value ?? '',
+];
+
+$element['submit'] = [
+  '#type' => 'submit',
+  '#value' => $this->t('Check length'),
+]
+
+return $element;
+----
+
+Now we have a button, but it doesn't do much. Let's give it an AJAX handler:
+
+[source,php]
+----
+$element['value'] = [
+  '#type' => 'textfield',
+  '#title' => $this->t('Text'),
+  '#default_value' => $items[$delta]->value ?? '',
+];
+
+$element['submit'] = [
+  '#type' => 'submit',
+  '#value' => $this->t('Check length'),
+  '#ajax' => [
+    'callback' => [$this, 'doAjax'],
+    'progress' => [
+      'type' => 'throbber',
+      'message' => $this->t('Counting characters...'),
+    ],
+  ],
+];
+
+return $element;
+----
+
+Rather than add a callback like `[static::class, 'doAjax']` where I'd have to use a static class, I've used `$this` so that I can call out to `$this->t()` within my method. We can't invoke the method using the double colon syntax like `['::doAjax']` because it would get invoked on the form object, and the method is attached to the Widget class.
+
+Now we also need to add our AJAX callback method to the class:
+
+[source,php]
+----
+public function doAjax(array $form, FormStateInterface $form_state) {
+
+}
+----
+
+// @todo rephrase repetition from a previous paragraph
+
+AJAX handlers must return an `AjaxResponse` with one or more AJAX commands to execute actions on the front-end. Let's add a simple `OpenModalDialogCommand` to show us the field count:
+
+[source,php]
+----
+public function doAjax(array $form, FormStateInterface $form_state) {
+  $triggering_element = $form_state->getTriggeringElement();
+  $parents = array_slice($triggering_element['#parents'], 0, -1);
+  $value = $form_state->getValue(array_merge($parents, ['value']));
+
+  $message = $this->t('The message is @count characters long', ['@count' => mb_strlen($value)]);
+  $response = new AjaxResponse();
+  $response->addCommand(new OpenModalDialogCommand($this->t('Message count'), $message));
+  return $response;
+}
+----
+
+We also need to add the dialog library as an attachment to our form:
+
+[source,php]
+----
+$element['#attached']['library'][] = 'core/drupal.dialog.ajax';
+----
+
+This now shows us an alert with the number of characters in the field. 
+
+image:dialog.png[The modal dialog containing the character count]
+
+Our complete widget code is now:
+
+[source,php]
+----
+<?php
+
+namespace Drupal\example_widget\Plugin\Field\FieldWidget;
+
+use Drupal\Core\Ajax\AjaxResponse;
+use Drupal\Core\Ajax\OpenModalDialogCommand;
+use Drupal\Core\Field\FieldItemListInterface;
+use Drupal\Core\Field\WidgetBase;
+use Drupal\Core\Form\FormStateInterface;
+
+/**
+ * Plugin implementation of the 'example_text_field_widget' widget.
+ *
+ * @FieldWidget(
+ *   id = "example_widget_basic_widget",
+ *   module = "example_widget",
+ *   label = @Translation("Basic text field widget"),
+ *   field_types = {
+ *     "string"
+ *   }
+ * )
+ */
+class BasicWidgetExample extends WidgetBase {
+
+  /**
+   * {@inheritdoc}
+   */
+  public function formElement(FieldItemListInterface $items, $delta, array $element, array &$form, FormStateInterface $form_state): array {
+    $element['value'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Text'),
+      '#default_value' => $items[$delta]->value ?? '',
+    ];
+
+    $element['submit'] = [
+      '#type' => 'submit',
+      '#value' => $this->t('Check length'),
+      '#ajax' => [
+        'callback' => [$this, 'doAjax'],
+        'progress' => [
+          'type' => 'throbber',
+          'message' => $this->t('Counting characters...'),
+        ],
+      ],
+    ];
+
+    $element['#attached']['library'][] = 'core/drupal.dialog.ajax';
+
+    return $element;
+  }
+
+  /**
+   * AJAX handler.
+   *
+   * @param array $form
+   *   The form array.
+   * @param FormStateInterface $form_state
+   *   The form state.
+   *
+   * @return AjaxResponse
+   *   A series of commands to be executed.
+   */
+  public function doAjax(array $form, FormStateInterface $form_state) {
+    $triggering_element = $form_state->getTriggeringElement();
+    $parents = array_slice($triggering_element['#parents'], 0, -1);
+    $value = $form_state->getValue(array_merge($parents, ['value']));
+
+    $message = $this->t('The message is @count characters long', ['@count' => mb_strlen($value)]);
+    $response = new AjaxResponse();
+    $response->addCommand(new OpenModalDialogCommand($this->t('Message count'), $message));
+    return $response;
+  }
+
+}
+----
+
+That's a basic example of a widget AJAX button with callback. All we had to add was:
+
+. A `submit` element with an `#ajax` callback
+. A corresponding method on the Widget class
+. An `AjaxResponse` containing one or more AJAX commands

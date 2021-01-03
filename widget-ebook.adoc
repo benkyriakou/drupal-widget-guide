@@ -1,0 +1,60 @@
+= The Complete Drupal Widget Guide
+:author: Ben Kyriakou
+:email: ben@benkyriakou.com
+:revnumber: 0.1
+:sectnums:
+:doctype: book
+:imagesdir: images
+:toc:
+
+== Preface
+
+include::sections/preface.adoc[]
+
+== What are Widgets?
+
+include::sections/what-are-widgets.adoc[]
+
+== A basic Widget
+
+include::sections/a-basic-widget.adoc[]
+
+== Adding an AJAX button
+
+include::sections/ajax.adoc[]
+
+== Settings
+
+include::sections/basic-settings.adoc[]
+
+== Generating widgets with Drupal console
+
+include::sections/generating-widgets.adoc[]
+
+== How do widgets work?
+
+include::sections/how-do-widgets-work.adoc[]
+
+== How do settings work?
+
+include::sections/how-do-settings-work.adoc[]
+
+== How does form AJAX work?
+
+include::sections/how-does-ajax-work.adoc[]
+
+== Third-party settings
+
+include::sections/third-party-settings.adoc[]
+
+== Appendix
+
+include::sections/appendix.adoc[]
+
+=== ddev environment
+
+include::sections/ddev-environment.adoc[]
+
+== Errata
+
+include::sections/errata.adoc[]

@@ -1,0 +1,94 @@
+// @todo I’m still not entirely sure how settings work for the aggregate schema--how does it know which schema to install? Why doesn’t the `field.widget.settings.*` schema get created? Presumably this is managed in core somewhere, but probably requires more figuring out how how settings work in general. May be beyond the scope of this ebook.
+
+Now we have a basic widget that offers character counts for our field. But what if we want to make the widget configurable? Maybe sometimes we want to have character counts for a field, and other times we want word counts.
+
+This is where some of the methods that are implemented on `WidgetBase` will need to be overridden. To add basic settings we need four things:
+
+. A settings schema to be used by the form
+. A default value for the setting
+. A form to change the setting for the field
+. A summary of the settings to show on the field admin page
+
+Let's implement these in order.
+
+To create a schema for our widget settings, we first need to create a https://www.drupal.org/docs/drupal-apis/configuration-api/configuration-schemametadata[configuration schema file] for our module. In `example_widget/config/schema`, create a file called `example_widget.schema.yml`. As per https://www.drupal.org/docs/creating-custom-modules/creating-custom-field-types-widgets-and-formatters/create-a-custom-0#s-step-2-create-the-configuration-schema-for-the-settings-youve-created[the widget documentation] we then need to create a schema for our widget of the format `field.widget.settings.[WIDGET ID]`:
+
+[source,yml]
+----
+field.widget.settings.example_widget_basic_widget:
+  type: mapping
+  label: 'Example basic field widget settings'
+  mapping:
+    count_type:
+      type: text
+      label: 'Count type'
+----
+
+This creates a basic schema with a text field corresponding to our settingm which we've called `count_type`. If you're interested in more of the specifics on the naming of this schema, or how it gets used, see the advanced settings section.
+
+Next the default settings. This uses, unsurprisingly, the `defaultSettings()` method of `WidgetInterface`. Let's assume we have two types of count available, 'letter' and 'word':
+
+[source,php]
+----
+/**
+* {@inheritdoc}
+*/
+public static function defaultSettings(): array {
+    return [
+        'count_type' => 'letter',
+    ] + parent::defaultSettings();
+}
+----
+
+Here we override the `defaultSettings` method, adding a new default settings value called `'count_type'` in addition to the settings values from the parent field--in our case not entirely necessary since the implementation of `defaultSettings` on `WidgetBase` is blank, but important if we were extending another text field widget which offers some additional settings.
+
+Now we need to add a form to allow the administrator to manipulate our settings. Since we have a setting that has a set of fixed values, of which we need the user to pick one, let's go with a `select` element:
+
+[source,php]
+----
+/**
+* {@inheritdoc}
+*/
+public function settingsForm(array $form, FormStateInterface $form_state): array {
+    $elements = [];
+
+    $elements['count_type'] = [
+        '#type' => 'select',
+        '#title' => t('Count type'),
+        '#default_value' => $this->getSetting('count_type'),
+        '#options' => [
+            'letter' => $this->t('Letter'),
+            'word' => $this->t('Word'),
+        ],
+    ];
+
+    return $elements;
+}
+----
+
+Now we have something that's visible in the admin interface--you can edit the node bundle that your field is attached to and toggle this setting using the new select box:
+
+image:settings-form-display.png[The basic count type settings form]
+
+However, you still can't see the value of this setting in the settings summary, so finally let's add a `settingsSummary` method to our widget class:
+
+
+[source,php]
+----
+/**
+* {@inheritdoc}
+*/
+public function settingsSummary() {
+    $summary = parent::settingsSummary();
+
+    $summary[] = $this->t('Shows a @count_type count', ['@count_type' => $this->getSetting('count_type')]);
+
+    return $summary;
+}
+----
+
+Now we can edit our setting on the *Manage form display* tab and update the stored value, have it saved in the form config, and see the settings summary updated with our selected value:
+
+image:settings-form-edit.png[Editing the count type]
+
+image:settings-form-summary.png[The field summary showing the count type]

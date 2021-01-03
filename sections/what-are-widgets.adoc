@@ -1,0 +1,24 @@
+
+I’m assuming that if you’re here you already have at least some idea of what a widget is and why you want to make one--if that’s the case, feel free to skip to the next chapter. If not, have a read.
+
+Widgets are part of the triumvirate of core field Plugins, formed of https://www.drupal.org/docs/8/api/entity-api/fieldtypes-fieldwidgets-and-fieldformatters[`FieldType`, `FieldFormatter`, and `FieldWidget`]. The roles of these plugins are as follows:
+
+=== FieldType
+
+A `*FieldType*` defines the structure and schema of a particular type of field--for example, a text or date field. It doesn’t know anything about how you enter the information for the field, or how it looks on the front-end, just how it stores and processes data.
+
+=== FieldFormatter
+
+A `*FieldFormatter*` defines the front-end appearance for one or more
+`*FieldTypes*`. You can have more than one formatter for a type, and if they’re similar enough a formatter can span multiple types (although most only cater to a single type). The contract between the formatter and type is the data structure the type defines - the formatter then takes the data the field returns when being displayed and performs the necessary operations to show it to the user (escaping data, wrapping it in a theme template, etc.).
+
+=== FieldWidget
+
+A `*FieldWidget*` defines the back-end interface for one or more
+`*FieldTypes*`. This is the form that an admin user will edit the field with, and as with `*FieldFormatters*` a type often has multiple widgets available. These can be as simple as a single text input for a plain-text field, or as complex as a JavaScript-drivenz widget for a date repeat field.
+
+Ultimately the contract that the widget has with the type is the same as the formatter--the structure of the data that the type expects to save in the database. This means that, whatever the front-end interface of the widget, it must return data in the same format that the type defines to be able to save it into the database (and subsequently return it for display with the formatter)
+
+So the reason to make a widget might be that you’re defining a new field type and you want to give users a way to enter data or, more commonly, you want to add a new way for a user to interact with an existing field type. You also might not be defining an entirely new widget, and instead you just want to alter the behaviour of an existing widget (or widgets). Don’t worry - we’ll cover that too.
+
+So that’s the use-case for this ebook. Now carry on to find out how to do it!
