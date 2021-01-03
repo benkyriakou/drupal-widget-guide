@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="generator" content="Asciidoctor 2.0.10">
 <meta name="author" content="Ben Kyriakou">
-<title>The Complete Drupal Widget Guide</title>
+<title>The Drupal Widget Guide</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">
 <style>
 /* Asciidoctor default stylesheet | MIT License | https://asciidoctor.org */
@@ -439,7 +439,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </head>
 <body class="book">
 <div id="header">
-<h1>The Complete Drupal Widget Guide</h1>
+<h1>The Drupal Widget Guide</h1>
 <div class="details">
 <span id="author" class="author">Ben Kyriakou</span><br>
 <span id="email" class="email"><a href="mailto:ben@benkyriakou.com">ben@benkyriakou.com</a></span><br>
@@ -449,49 +449,40 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div id="toctitle">Table of Contents</div>
 <ul class="sectlevel1">
 <li><a href="#_preface">1. Preface</a></li>
-<li><a href="#_preface_2">2. Preface</a></li>
-<li><a href="#_what_are_widgets">3. What are Widgets?</a></li>
-<li><a href="#_what_are_widgets_2">4. What are Widgets?</a>
+<li><a href="#_what_are_widgets">2. What are Widgets?</a>
 <ul class="sectlevel2">
-<li><a href="#_fieldtype">4.1. FieldType</a></li>
-<li><a href="#_fieldformatter">4.2. FieldFormatter</a></li>
-<li><a href="#_fieldwidget">4.3. FieldWidget</a></li>
+<li><a href="#_fieldtype">2.1. FieldType</a></li>
+<li><a href="#_fieldformatter">2.2. FieldFormatter</a></li>
+<li><a href="#_fieldwidget">2.3. FieldWidget</a></li>
 </ul>
 </li>
-<li><a href="#_a_basic_widget">5. A basic Widget</a></li>
-<li><a href="#_a_basic_widget_2">6. A basic Widget</a></li>
-<li><a href="#_adding_an_ajax_button">7. Adding an AJAX button</a></li>
-<li><a href="#_settings">8. Settings</a></li>
-<li><a href="#_generating_widgets_with_drupal_console">9. Generating widgets with Drupal console</a></li>
-<li><a href="#_how_do_widgets_work">10. How do widgets work?</a></li>
-<li><a href="#_how_do_settings_work">11. How do settings work?</a></li>
-<li><a href="#_how_does_form_ajax_work">12. How does form AJAX work?</a></li>
-<li><a href="#_third_party_settings">13. Third-party settings</a>
+<li><a href="#_a_basic_widget">3. A basic Widget</a></li>
+<li><a href="#_adding_an_ajax_button">4. Adding an AJAX button</a></li>
+<li><a href="#_settings">5. Settings</a></li>
+<li><a href="#_generating_widgets_with_drupal_console">6. Generating widgets with Drupal console</a></li>
+<li><a href="#_how_do_widgets_work">7. How do widgets work?</a></li>
+<li><a href="#_how_do_settings_work">8. How do settings work?</a></li>
+<li><a href="#_how_does_form_ajax_work">9. How does form AJAX work?</a></li>
+<li><a href="#_third_party_settings">10. Third-party settings</a>
 <ul class="sectlevel2">
-<li><a href="#_the_api">13.1. The API</a></li>
-<li><a href="#_the_implementation">13.2. The implementation</a></li>
+<li><a href="#_the_api">10.1. The API</a></li>
+<li><a href="#_the_implementation">10.2. The implementation</a></li>
 </ul>
 </li>
-<li><a href="#_appendix">14. Appendix</a>
+<li><a href="#_appendix">11. Appendix</a>
 <ul class="sectlevel2">
-<li><a href="#_form_api_primer">14.1. Form API primer</a></li>
-<li><a href="#_render_element_primer">14.2. Render element primer</a></li>
-<li><a href="#_ddev_environment">14.3. ddev environment</a></li>
+<li><a href="#_form_api_primer">11.1. Form API primer</a></li>
+<li><a href="#_render_element_primer">11.2. Render element primer</a></li>
+<li><a href="#_ddev_environment">11.3. ddev environment</a></li>
 </ul>
 </li>
-<li><a href="#_errata">15. Errata</a></li>
+<li><a href="#_errata">12. Errata</a></li>
 </ul>
 </div>
 </div>
 <div id="content">
 <div class="sect1">
 <h2 id="_preface">1. Preface</h2>
-<div class="sectionbody">
-
-</div>
-</div>
-<div class="sect1">
-<h2 id="_preface_2">2. Preface</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>I’ve been developing for Drupal 8 for about three years now and, whilst it’s been a marked improvement from Drupal 7 in many ways, I’ve often found myself looking for documentation that doesn’t exist. After numerous expeditions into the Drupal source code I started documenting my findings in blog posts, partly for my own memory and partly to help others having the same issue.</p>
@@ -511,13 +502,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </div>
 </div>
 <div class="sect1">
-<h2 id="_what_are_widgets">3. What are Widgets?</h2>
-<div class="sectionbody">
-
-</div>
-</div>
-<div class="sect1">
-<h2 id="_what_are_widgets_2">4. What are Widgets?</h2>
+<h2 id="_what_are_widgets">2. What are Widgets?</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>I’m assuming that if you’re here you already have at least some idea of what a widget is and why you want to make one&#8212;&#8203;if that’s the case, feel free to skip to the next chapter. If not, have a read.</p>
@@ -526,20 +511,20 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <p>Widgets are part of the triumvirate of core field Plugins, formed of <a href="https://www.drupal.org/docs/8/api/entity-api/fieldtypes-fieldwidgets-and-fieldformatters"><code>FieldType</code>, <code>FieldFormatter</code>, and <code>FieldWidget</code></a>. The roles of these plugins are as follows:</p>
 </div>
 <div class="sect2">
-<h3 id="_fieldtype">4.1. FieldType</h3>
+<h3 id="_fieldtype">2.1. FieldType</h3>
 <div class="paragraph">
 <p>A <code><strong>FieldType</strong></code> defines the structure and schema of a particular type of field&#8212;&#8203;for example, a text or date field. It doesn’t know anything about how you enter the information for the field, or how it looks on the front-end, just how it stores and processes data.</p>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_fieldformatter">4.2. FieldFormatter</h3>
+<h3 id="_fieldformatter">2.2. FieldFormatter</h3>
 <div class="paragraph">
 <p>A <code><strong>FieldFormatter</strong></code> defines the front-end appearance for one or more
 <code><strong>FieldTypes</strong></code>. You can have more than one formatter for a type, and if they’re similar enough a formatter can span multiple types (although most only cater to a single type). The contract between the formatter and type is the data structure the type defines - the formatter then takes the data the field returns when being displayed and performs the necessary operations to show it to the user (escaping data, wrapping it in a theme template, etc.).</p>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_fieldwidget">4.3. FieldWidget</h3>
+<h3 id="_fieldwidget">2.3. FieldWidget</h3>
 <div class="paragraph">
 <p>A <code><strong>FieldWidget</strong></code> defines the back-end interface for one or more
 <code><strong>FieldTypes</strong></code>. This is the form that an admin user will edit the field with, and as with <code><strong>FieldFormatters</strong></code> a type often has multiple widgets available. These can be as simple as a single text input for a plain-text field, or as complex as a JavaScript-drivenz widget for a date repeat field.</p>
@@ -557,13 +542,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </div>
 </div>
 <div class="sect1">
-<h2 id="_a_basic_widget">5. A basic Widget</h2>
-<div class="sectionbody">
-
-</div>
-</div>
-<div class="sect1">
-<h2 id="_a_basic_widget_2">6. A basic Widget</h2>
+<h2 id="_a_basic_widget">3. A basic Widget</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>So let’s start getting into the interesting bits first&#8212;&#8203;how to make a widget. The code below is written against Drupal 8, but since the API hasn’t changed in Drupal 9 at the time of writing I’d expect it all to be forwards-compatible. If you run into any issues, see the errata section for more information.</p>
@@ -825,7 +804,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </div>
 </div>
 <div class="sect1">
-<h2 id="_adding_an_ajax_button">7. Adding an AJAX button</h2>
+<h2 id="_adding_an_ajax_button">4. Adding an AJAX button</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>Because widget forms are standalone elements of a larger form, the general method of interacting with them using buttons is via AJAX actions. It is possible to add handlers to the parent form, but we then have to deal with the whole form array rather than the specific part we’re interested in for the widget, and isn&#8217;t a standard way of interacting with them in core.</p>
@@ -1055,7 +1034,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </div>
 </div>
 <div class="sect1">
-<h2 id="_settings">8. Settings</h2>
+<h2 id="_settings">5. Settings</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>Now we have a basic widget that offers character counts for our field. But what if we want to make the widget configurable? Maybe sometimes we want to have character counts for a field, and other times we want word counts.</p>
@@ -1177,7 +1156,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </div>
 </div>
 <div class="sect1">
-<h2 id="_generating_widgets_with_drupal_console">9. Generating widgets with Drupal console</h2>
+<h2 id="_generating_widgets_with_drupal_console">6. Generating widgets with Drupal console</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>Now we can get started by creating a module and a widget with console generation commands. If you haven’t used Drupal Console before, it gives you a bunch of scaffolding commands to generate basic plugins and components, which saves a lot of time when you’re getting up and running
@@ -1383,7 +1362,7 @@ Available commands for the "generate" namespace:
 </div>
 </div>
 <div class="sect1">
-<h2 id="_how_do_widgets_work">10. How do widgets work?</h2>
+<h2 id="_how_do_widgets_work">7. How do widgets work?</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>Our widget is an implementation of the <code>FieldWidget</code> plugin which, if you’ve used plugins before, should look pretty familiar. First we have the annotation that defines the plugin:</p>
@@ -1817,7 +1796,7 @@ core.entity_form_display.*.*.*:
 </div>
 </div>
 <div class="sect1">
-<h2 id="_how_do_settings_work">11. How do settings work?</h2>
+<h2 id="_how_do_settings_work">8. How do settings work?</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>Our settings get loaded via <code>HtmlEntityFormController</code>:</p>
@@ -2055,7 +2034,7 @@ core.entity_form_display.*.*.*:
 </div>
 </div>
 <div class="sect1">
-<h2 id="_how_does_form_ajax_work">12. How does form AJAX work?</h2>
+<h2 id="_how_does_form_ajax_work">9. How does form AJAX work?</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>Because widget forms are standalone elements of a larger form, the general method of interacting with them using buttons is via AJAX actions. It is possible to add handlers to the parent form, but we then have to deal with the whole form array rather than the specific part we’re interested in for the widget, and isn&#8217;t a standard way of interacting with them in core.</p>
@@ -2264,7 +2243,7 @@ core.entity_form_display.*.*.*:
 </div>
 </div>
 <div class="sect1">
-<h2 id="_third_party_settings">13. Third-party settings</h2>
+<h2 id="_third_party_settings">10. Third-party settings</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>Third-party settings are a part of the form API which allows you to add your own settings options to one or more widgets using hooks. The use-case for this might be to add a global setting (like a checkbox to manage a front-end display option) to a group of widgets in your site, or to enhance a particular kind of widget without extending the class.</p>
@@ -2273,7 +2252,7 @@ core.entity_form_display.*.*.*:
 <p>If you&#8217;re in a situation where the most appropriate option is to create a new widget by extending the class, this probably isn&#8217;t for you.</p>
 </div>
 <div class="sect2">
-<h3 id="_the_api">13.1. The API</h3>
+<h3 id="_the_api">10.1. The API</h3>
 <div class="paragraph">
 <p>We can find information about the interface portion of the API in <code>field_ui.api.php</code>:</p>
 </div>
@@ -2516,7 +2495,7 @@ core.entity_form_display.*.*.*:
 </div>
 </div>
 <div class="sect2">
-<h3 id="_the_implementation">13.2. The implementation</h3>
+<h3 id="_the_implementation">10.2. The implementation</h3>
 <div class="paragraph">
 <p>We&#8217;ve now added our settings, and we can retrieve them from the widget object with <code>getThirdPartySetting</code>. So how do we make them affect our widget display?</p>
 </div>
@@ -2590,18 +2569,18 @@ core.entity_form_display.*.*.*:
 </div>
 </div>
 <div class="sect1">
-<h2 id="_appendix">14. Appendix</h2>
+<h2 id="_appendix">11. Appendix</h2>
 <div class="sectionbody">
 <div class="sect2">
-<h3 id="_form_api_primer">14.1. Form API primer</h3>
+<h3 id="_form_api_primer">11.1. Form API primer</h3>
 
 </div>
 <div class="sect2">
-<h3 id="_render_element_primer">14.2. Render element primer</h3>
+<h3 id="_render_element_primer">11.2. Render element primer</h3>
 
 </div>
 <div class="sect2">
-<h3 id="_ddev_environment">14.3. ddev environment</h3>
+<h3 id="_ddev_environment">11.3. ddev environment</h3>
 <div class="paragraph">
 <p>I’m assuming you already have a basic Drupal 8 environment set up&#8212;&#8203;if not, the easiest way to get started is with the ddev installer&#8212;&#8203;go ahead, I’ll wait.</p>
 </div>
@@ -2622,7 +2601,7 @@ core.entity_form_display.*.*.*:
 </div>
 </div>
 <div class="sect1">
-<h2 id="_errata">15. Errata</h2>
+<h2 id="_errata">12. Errata</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>If you spot any issues with the content of this ebook, please let me know so I can correct it accordingly. Send an email to <a href="mailto:ben@benkyriakou.com">ben@benkyriakou.com</a> with the details of the issue, your edition version, and the page it appears on. Thanks!</p>
@@ -2633,7 +2612,7 @@ core.entity_form_display.*.*.*:
 <div id="footer">
 <div id="footer-text">
 Version 0.1<br>
-Last updated 2021-01-03 16:17:21 UTC
+Last updated 2021-01-03 16:32:16 UTC
 </div>
 </div>
 <style>
