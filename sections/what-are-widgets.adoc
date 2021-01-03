@@ -1,4 +1,3 @@
-
 I’m assuming that if you’re here you already have at least some idea of what a widget is and why you want to make one--if that’s the case, feel free to skip to the next chapter. If not, have a read.
 
 Widgets are part of the triumvirate of core field Plugins, formed of https://www.drupal.org/docs/8/api/entity-api/fieldtypes-fieldwidgets-and-fieldformatters[`FieldType`, `FieldFormatter`, and `FieldWidget`]. The roles of these plugins are as follows:

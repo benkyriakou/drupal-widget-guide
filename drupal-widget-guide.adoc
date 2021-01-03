@@ -1,10 +1,12 @@
-= The Complete Drupal Widget Guide
+= The Drupal Widget Guide
 :author: Ben Kyriakou
 :email: ben@benkyriakou.com
 :revnumber: 0.1
 :sectnums:
 :doctype: book
 :imagesdir: images
+:source-highlighter: pygments
+:pygments-css: class
 :toc:
 
 == Preface
