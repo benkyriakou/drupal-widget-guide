@@ -91,9 +91,7 @@ What we end up with is a configuration entity with a schema corresponding to tha
 
 (Where `form_mode_name` is basically the display mode).
 
-
-
-The last part of this is in `+$storage->create()+`, where we see a call which literally resolves to 
+The last part of this is in `+$storage->create()+`, where we see a call which literally resolves to:
 
 [source,php]
 ----
@@ -150,9 +148,6 @@ $route_match->getParameters()->all()
 
 So the settings are resolved via the form, which has an attached `ConfigEntity`. The schema for this is built dynamically based on the widgets included in the form using the special `[%key]` and `[%parent]` placeholders. These allow the schema to reference values from the include widgets.
 
-`[%key]` 
-
-
 If we look at some real exported config, we see:
 
 [source,yaml]
@@ -203,5 +198,3 @@ This from the template schema in `core.entity.schema.yml`:
 For our example widget, `[%key]` resolves to `field_example_widget`, So our third-party settings would be set via a schema value of `field.widget.third_party.field_example_widget`. In practice I haven't seen a module that uses third-party settings, but there's a test example of this in core in the `field_third_party_test` module.
 
 The more interesting value is `[%parent.type]`. The parent is the widget, and the type is the id of the widget plugin, so for our example widget it resolves to `example_widget_base_widget`. This will be used by all widgets, and then provides the reference back to the widget type when the settings are loaded.
-
-// @todo What are third-party settings even for?

@@ -1,5 +1,3 @@
-// @todo I’m still not entirely sure how settings work for the aggregate schema--how does it know which schema to install? Why doesn’t the `field.widget.settings.*` schema get created? Presumably this is managed in core somewhere, but probably requires more figuring out how how settings work in general. May be beyond the scope of this ebook.
-
 Now we have a basic widget that offers character counts for our field. But what if we want to make the widget configurable? Maybe sometimes we want to have character counts for a field, and other times we want word counts.
 
 This is where some of the methods that are implemented on `WidgetBase` will need to be overridden. To add basic settings we need four things:
