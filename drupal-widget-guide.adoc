@@ -9,6 +9,8 @@
 :pygments-css: class
 :toc:
 
+include::sections/foreword.adoc[]
+
 == Preface
 
 include::sections/preface.adoc[]

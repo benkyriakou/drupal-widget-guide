@@ -1,0 +1,11 @@
+[.lead]
+Thanks for taking the time to read this ebook! This is something that I started writing towards the tail-end of 2020, when I was working with Drupal 8 and struggling with a lack of documentation around widgets and the widget API. Since then I've moved on to work with Ruby and other non-Drupal technologies, and it doesn't look likely I'll be spending time on this in the future, so instead of leaving it to rot in a private repo I'm publishing it here under an https://benkyriakou.com/drupal-widget-guide/LICENSE.txt[LGPL license] and making https://github.com/benkyriakou/drupal-widget-guide[the GitHub repository] public.
+
+[.lead]
+My hope is that at the least someone will find it a useful reference, even in its partially-complete state. If you would like to contribute, I'm happy to accept PRs and merge in changes to round out the sections I haven't totally fleshed out.
+
+[.lead]
+If you do find this useful, you can express your appreciation by https://www.buymeacoffee.com/benkyriakou[buying me a coffee (or several)].
+
+[.lead]
+Enjoy!
